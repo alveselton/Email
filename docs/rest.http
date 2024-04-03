@@ -5,7 +5,7 @@
 POST http://localhost:8080/realms/provider/protocol/openid-connect/token
 Content-Type: application/x-www-form-urlencoded
 
-client_id=emailproject&username=elton&password=123456&grant_type=password
+client_id=emailproject&username=alveselton@gmail.com&password=123456&grant_type=password
 
 ###
 @access_token = {{token.response.body.access_token}}
@@ -20,9 +20,9 @@ POST {{url}}/campaigns
 Authorization: Bearer {{access_token}}
 
 {
-    "name": "notebook Asus",
+    "name": "notebook Lenovo",
     "content" : "Notebook",
-    "emails" : ["teste@teste.com.br", "teste2@teste.com.br", "teste3@teste.com.br"]
+    "emails" : ["elton2004@hotmail.com"]
 }
 
 ###
@@ -47,4 +47,9 @@ Authorization: Bearer {{access_token}}
 ###
 
 DELETE {{url}}/campaigns/delete/{{id_campaign}}
+Authorization: Bearer {{access_token}}
+
+###
+
+PATCH {{url}}/campaigns/start/{{id_campaign}}
 Authorization: Bearer {{access_token}}

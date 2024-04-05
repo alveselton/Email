@@ -20,7 +20,6 @@ type ServiceImp struct {
 
 func (s *ServiceImp) Create(newCampaign contract.NewCampaign) (string, error) {
 
-	//TODO: fix the arg createdby
 	campaign, err := NewCampaign(newCampaign.Name, newCampaign.Content, newCampaign.Emails, newCampaign.CreatedBy)
 
 	if err != nil {
@@ -56,19 +55,14 @@ func (s *ServiceImp) GetBy(id string) (*contract.CampaignResponse, error) {
 
 func (s *ServiceImp) Delete(id string) error {
 
-	campaign, err := s.Repository.GetBy(id)
+	campaignSaved, err := s.getAndValidateStatusIsPending(id)
 
 	if err != nil {
-		return statusreturnmessage.ProcessErrorToReturn(err)
+		return err
 	}
 
-	if campaign.Status != Pending {
-		return errors.New("Campaign status invalid")
-	}
-
-	campaign.Delete()
-	err = s.Repository.Delete(campaign)
-
+	campaignSaved.Delete()
+	err = s.Repository.Delete(campaignSaved)
 	if err != nil {
 		return statusreturnmessage.ErrInternal
 	}
@@ -78,26 +72,40 @@ func (s *ServiceImp) Delete(id string) error {
 
 func (s *ServiceImp) Start(id string) error {
 
-	campaignSaved, err := s.Repository.GetBy(id)
+	campaignSaved, err := s.getAndValidateStatusIsPending(id)
 
 	if err != nil {
-		return statusreturnmessage.ProcessErrorToReturn(err)
+		return err
 	}
 
-	if campaignSaved.Status != Pending {
-		return errors.New("Campaign status invalid")
-	}
+	go func() {
+		err = s.SendMail(campaignSaved)
+		if err != nil {
+			campaignSaved.Fail()
+		} else {
+			campaignSaved.Done()
+		}
+		s.Repository.Update(campaignSaved)
+	}()
 
-	err = s.SendMail(campaignSaved)
-	if err != nil {
-		return statusreturnmessage.ErrInternal
-	}
-
-	campaignSaved.Done()
+	campaignSaved.Started()
 	err = s.Repository.Update(campaignSaved)
 	if err != nil {
 		return statusreturnmessage.ErrInternal
 	}
 
 	return nil
+}
+
+func (s *ServiceImp) getAndValidateStatusIsPending(id string) (*Campaign, error) {
+	campaign, err := s.Repository.GetBy(id)
+
+	if err != nil {
+		return nil, statusreturnmessage.ProcessErrorToReturn(err)
+	}
+
+	if campaign.Status != Pending {
+		return nil, errors.New("Campaign status invalid")
+	}
+	return campaign, nil
 }

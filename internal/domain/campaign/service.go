@@ -2,13 +2,12 @@ package campaign
 
 import (
 	statusreturnmessage "email/internal/StatusReturnMessage"
-	"email/internal/contract"
 	"errors"
 )
 
 type Service interface {
-	Create(newCampaign contract.NewCampaign) (string, error)
-	GetBy(id string) (*contract.CampaignResponse, error)
+	Create(newCampaign NewCampaignRequest) (string, error)
+	GetBy(id string) (*CampaignResponse, error)
 	Delete(id string) error
 	Start(id string) error
 }
@@ -18,7 +17,7 @@ type ServiceImp struct {
 	SendMail   func(campaign *Campaign) error
 }
 
-func (s *ServiceImp) Create(newCampaign contract.NewCampaign) (string, error) {
+func (s *ServiceImp) Create(newCampaign NewCampaignRequest) (string, error) {
 
 	campaign, err := NewCampaign(newCampaign.Name, newCampaign.Content, newCampaign.Emails, newCampaign.CreatedBy)
 
@@ -35,7 +34,7 @@ func (s *ServiceImp) Create(newCampaign contract.NewCampaign) (string, error) {
 	return campaign.ID, nil
 }
 
-func (s *ServiceImp) GetBy(id string) (*contract.CampaignResponse, error) {
+func (s *ServiceImp) GetBy(id string) (*CampaignResponse, error) {
 
 	campaign, err := s.Repository.GetBy(id)
 
@@ -43,7 +42,7 @@ func (s *ServiceImp) GetBy(id string) (*contract.CampaignResponse, error) {
 		return nil, statusreturnmessage.ProcessErrorToReturn(err)
 	}
 
-	return &contract.CampaignResponse{
+	return &CampaignResponse{
 		ID:                   campaign.ID,
 		Name:                 campaign.Name,
 		Content:              campaign.Content,
@@ -70,6 +69,18 @@ func (s *ServiceImp) Delete(id string) error {
 	return nil
 }
 
+func (s *ServiceImp) SendEmailAndUpdateStatus(campaignSaved *Campaign) error {
+	err := s.SendMail(campaignSaved)
+	if err != nil {
+		campaignSaved.Fail()
+	} else {
+		campaignSaved.Done()
+	}
+	s.Repository.Update(campaignSaved)
+
+	return err
+}
+
 func (s *ServiceImp) Start(id string) error {
 
 	campaignSaved, err := s.getAndValidateStatusIsPending(id)
@@ -77,16 +88,6 @@ func (s *ServiceImp) Start(id string) error {
 	if err != nil {
 		return err
 	}
-
-	go func() {
-		err = s.SendMail(campaignSaved)
-		if err != nil {
-			campaignSaved.Fail()
-		} else {
-			campaignSaved.Done()
-		}
-		s.Repository.Update(campaignSaved)
-	}()
 
 	campaignSaved.Started()
 	err = s.Repository.Update(campaignSaved)
@@ -107,5 +108,6 @@ func (s *ServiceImp) getAndValidateStatusIsPending(id string) (*Campaign, error)
 	if campaign.Status != Pending {
 		return nil, errors.New("Campaign status invalid")
 	}
+
 	return campaign, nil
 }

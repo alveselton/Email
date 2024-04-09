@@ -15,6 +15,7 @@ client_id=emailproject&username=alveselton@gmail.com&password=123456&grant_type=
 GET {{url}}/ping
 
 ###
+
 # @name campanha
 POST {{url}}/campaigns
 Authorization: Bearer {{access_token}}

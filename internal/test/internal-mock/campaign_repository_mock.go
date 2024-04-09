@@ -36,3 +36,11 @@ func (r *CampaignRepositoryMock) Delete(compaign *campaign.Campaign) error {
 	args := r.Called(compaign)
 	return args.Error(0)
 }
+
+func (r *CampaignRepositoryMock) GetCampaignsToBeSent() ([]campaign.Campaign, error) {
+	args := r.Called()
+	if args.Error(1) != nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]campaign.Campaign), nil
+}
